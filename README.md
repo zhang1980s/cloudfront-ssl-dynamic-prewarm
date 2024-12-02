@@ -35,7 +35,6 @@ docker push <your_account_id>.dkr.ecr.<region>.amazonaws.com/current-time-app:la
 ## Create cdk environment
 
 ## Test
-curl -w "总时间： %{time_total} 秒\nDNS解析时间： %{time_namelookup} 秒\nTCP连接时间： %{time_connect} 秒\nSSL握手时间： %{time_appconnect} 秒\n发送请求时间： %{time_starttransfer} 秒\n" -o /dev/null -s https://my.okx.com/isavailable -v
 
 ```
 #!/bin/bash
