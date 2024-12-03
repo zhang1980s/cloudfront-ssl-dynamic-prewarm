@@ -22,7 +22,7 @@ export class CloudfrontSslDynamicPrewarmStack extends cdk.Stack {
     {
       cidrMask: 24,
       name: 'Private',
-      subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+      subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
     },
     {
       cidrMask: 24,
@@ -72,7 +72,7 @@ const fargateService = new ecs.FargateService(this, 'FargateService', {
   cluster,
   taskDefinition,
   desiredCount: 3,
-  vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+  vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
   securityGroups: [ecsSecurityGroup],
 });
 
