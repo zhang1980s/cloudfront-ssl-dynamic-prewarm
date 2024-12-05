@@ -1,9 +1,11 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
-import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as events from 'aws-cdk-lib/aws-events';
 import * as path from 'path';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 
 export class LambdaPrewarmStack extends cdk.Stack {
@@ -14,7 +16,7 @@ export class LambdaPrewarmStack extends cdk.Stack {
         const customDomain = new cdk.CfnParameter(this, 'customDomain', {
             type: 'String',
             description: 'Custom Domain Name',
-            default: 'cloudfrontlab.zzhe.xyz',
+            default: 'www.example.com',
         });
 
         const distributionDomainName = new cdk.CfnParameter(this, 'distributionDomainName', {
@@ -32,7 +34,7 @@ export class LambdaPrewarmStack extends cdk.Stack {
         const cloudfrontPops = new cdk.CfnParameter(this, 'cloudfrontPops', {
             type: 'String',
             description: 'Pop name list of Cloudfront',
-            default: 'FRA,LHR',
+            default: 'HKG1-P1,HKG1-P2,HKG54-C1,HKG54-P1,HKG54-P2,HKG60-C1,HKG62-C1,HKG62-C2,HKG62-P1',
         });
 
         const requestPerPop = new cdk.CfnParameter(this, 'requestPerPop', {
@@ -41,62 +43,50 @@ export class LambdaPrewarmStack extends cdk.Stack {
             default: '60',
         });
 
-        const refreshInterval = new cdk.CfnParameter(this, 'refreshInterval', {
-            type: 'Number',
-            description: 'Prewarm refresh interval',
-            default: '1',
-        })
 
         const sslPrewarmHandlerLogGroup = new logs.LogGroup(this, 'SslPrewarmHandlerLogGroup', {
             retention: logs.RetentionDays.ONE_WEEK,
             removalPolicy: cdk.RemovalPolicy.DESTROY
         });
 
-        const sslPrewarmHandler = new lambda.Function(this, 'SslPrewarmHandler', {
-            runtime: lambda.Runtime.PROVIDED_AL2023,
+        const sslPrewarmHandler = new NodejsFunction(this, 'SslPrewarmHandler', {
+            runtime: lambda.Runtime.NODEJS_18_X,
             architecture: lambda.Architecture.ARM_64,
-            handler: 'bootstrap',
-            code: lambda.Code.fromAsset(path.join(__dirname, '../lambda/ssl-prewarm-handler'), {
-                bundling: {
-                    image: lambda.Runtime.PROVIDED_AL2023.bundlingImage,
-                    command: [
-                        'bash',
-                        '-c',
-                        'export GOARCH=arm64 GOOS=linux && ' +
-                        'export GOPATH=/tmp/go && ' +
-                        'mkdir -p /tmp/go && ' +
-                        'go build -tags lambda.norpc -o bootstrap && ' +
-                        'cp bootstrap /asset-output/'
-                    ],
-                    user: 'root',
-                },
-            }),
-            timeout: cdk.Duration.seconds(30),
-            memorySize: 128,
+            entry: path.join(__dirname, '../lambda/ssl-prewarm-handler/scheduled-event-logger.mjs'),
+            handler: "scheduledEventLoggerHandler",
+            timeout: cdk.Duration.minutes(10),
+            memorySize: 4096,
             environment: {
                 'CUSTOM_DOMAIN': customDomain.valueAsString,
-                'DISTRIBUTION_DOMAIN': distributionDomainName.valueAsString,
+                'DISTRIBUTION_ID': distributionDomainName.valueAsString,
                 'PATH': uRLpath.valueAsString,
                 'POPS': cloudfrontPops.valueAsString,
                 'REQUESTS_PER_POP': requestPerPop.valueAsString,
             },
             logGroup: sslPrewarmHandlerLogGroup,
+            bundling: {
+                externalModules: ['aws-sdk'],
+                nodeModules: ['aws-xray-sdk'],
+              },
+              tracing: lambda.Tracing.ACTIVE,
         });
 
-        const SslPrewarmHandlerVersion = sslPrewarmHandler.currentVersion;
+        sslPrewarmHandler.addToRolePolicy(new cdk.aws_iam.PolicyStatement({
+            actions: ['xray:PutTraceSegments', 'xray:PutTelemetryRecords'],
+            resources: ['*'],
+        }));
 
-        const sslPrewarmHandlerAlias = new lambda.Alias(this, 'SslPrewarmHandlerAlias', {
-            aliasName: 'prod',
-            version: SslPrewarmHandlerVersion,
+        const prewarmScheduleEventRule = new events.Rule(this, 'PrewarmScheduleEventRule', {
+            schedule: events.Schedule.rate(cdk.Duration.minutes(1)),
+            description: `Prewarm Schedule Event every 1 minute(s)`,
+            enabled: false,
         });
 
-        const prewarmScheduleEventRule = new cdk.aws_events.Rule(this, 'PrewarmScheduleEventRule', {
-            schedule: cdk.aws_events.Schedule.rate(cdk.Duration.minutes(refreshInterval.valueAsNumber)),
-            description: 'Prewarm Schedule Event Rule',
-            enabled: true,
-        });
-
-        prewarmScheduleEventRule.addTarget(new cdk.aws_events_targets.LambdaFunction(sslPrewarmHandlerAlias));
+        prewarmScheduleEventRule.addTarget(new cdk.aws_events_targets.LambdaFunction(sslPrewarmHandler, {
+            event: events.RuleTargetInput.fromObject({
+                'action': 'prewarm',
+            }),
+        }));
 
     }
 

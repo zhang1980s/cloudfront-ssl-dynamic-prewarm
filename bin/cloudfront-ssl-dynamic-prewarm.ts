@@ -23,6 +23,6 @@ const lambdaPrewarmStack = new LambdaPrewarmStack(app, 'LambdaPrewarmStack', {
   env: env,
 });
 
-lambdaPrewarmStack.addDependency(cloudfrontDynamicAPIStack, 'Cloudfront must be deployed before Lambda Prewarm');
+// lambdaPrewarmStack.addDependency(cloudfrontDynamicAPIStack, 'Cloudfront must be deployed before Lambda Prewarm');
 
 app.synth();
