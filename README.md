@@ -111,7 +111,7 @@ for i in `seq 1 100`; do ./check_url_timing.sh https://<domain>/ ; sleep <second
 
 ## Test result
 
-### Frontend Hong Kong Region -> Backend Frafurt Region
+### Frontend Hong Kong Region -> Backend Frankfurt Region
 
 #### Idle timeout 5s, no prewarm
 
