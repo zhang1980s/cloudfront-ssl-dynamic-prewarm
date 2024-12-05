@@ -14,6 +14,7 @@ This issue can be addressed through the following two steps:
    https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-values-specify.html#DownloadDistValuesOriginKeepaliveTimeout
 
    > Make sure that the CloudFront Keep-Alive < backend https server Keep-Alive < NLB TCP idle timeout (default 350s) / ALB idle_timeout.timeout_seconds (default 60s)
+   
 
 2. Implement Lambda-based prewarming solution:
    Use Lambda functions to "prewarm" CloudFront PoP locations in regions with less frequent access. This approach helps reduce the probability of new TCP/SSL handshakes by maintaining active connections, thereby decreasing overall latency.
