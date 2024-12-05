@@ -2,7 +2,7 @@
 
 ## Introduction
 
-CloudFront can be used to accelerate dynamic HTTPS APIs from the backend. However, when dynamic requests are infrequent (less than 1 request per minute), request latency can increase due to the establishing of TCP/SSL connections between CloudFront POP locations and the backend custom domain.
+CloudFront can be used to accelerate dynamic HTTPS APIs from the backend. However, when dynamic requests are infrequent (less than 1 request per minute for specific IP of cloudfront POP), request latency can increase due to the establishing of TCP/SSL connections between CloudFront POP locations and the backend custom domain.
 
 This issue can be addressed through the following two steps:
 
